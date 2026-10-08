@@ -129,6 +129,18 @@
         required
       >
 
+      <label for="phone">Mobile Number</label>
+
+      <input
+        type="tel"
+        id="phone"
+        placeholder="10-digit mobile number"
+        inputmode="numeric"
+        maxlength="10"
+        autocomplete="tel"
+        required
+      >
+
       <label for="password">Password</label>
 
       <input
@@ -166,21 +178,18 @@
 
   </div>
 
-
   <script>
 
     // ==========================================
     // SUPABASE CONFIGURATION
     // ==========================================
 
-    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_URL =
+      "https://iromlvyoogoahfirveow.supabase.co";
 
-    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const SUPABASE_ANON_KEY =
+      "YOUR_PUBLISHABLE_KEY";
 
-
-    // ==========================================
-    // SUPABASE CLIENT
-    // ==========================================
 
     const supabaseClient =
       window.supabase.createClient(
@@ -190,7 +199,7 @@
 
 
     // ==========================================
-    // SIGN UP
+    // ELEMENTS
     // ==========================================
 
     const form =
@@ -203,13 +212,19 @@
       document.getElementById("message");
 
 
+    // ==========================================
+    // SIGNUP
+    // ==========================================
+
     form.addEventListener("submit", async function(event) {
 
       event.preventDefault();
 
-
       const email =
         document.getElementById("email").value.trim();
+
+      const phone =
+        document.getElementById("phone").value.trim();
 
       const password =
         document.getElementById("password").value;
@@ -221,7 +236,17 @@
       message.textContent = "";
 
 
-      // Check password
+      // Indian mobile number validation
+      if (!/^[6-9][0-9]{9}$/.test(phone)) {
+
+        message.style.color = "#f87171";
+
+        message.textContent =
+          "Enter a valid 10-digit Indian mobile number.";
+
+        return;
+      }
+
 
       if (password !== confirmPassword) {
 
@@ -246,17 +271,24 @@
 
 
       signupBtn.disabled = true;
-
-      signupBtn.textContent =
-        "Creating account...";
+      signupBtn.textContent = "Creating account...";
 
 
       try {
 
         const { data, error } =
           await supabaseClient.auth.signUp({
+
             email: email,
-            password: password
+
+            password: password,
+
+            options: {
+              data: {
+                phone_number: "+91" + phone
+              }
+            }
+
           });
 
 
@@ -266,7 +298,6 @@
 
 
         message.style.color = "#4ade80";
-
 
         if (data.session) {
 
@@ -281,12 +312,10 @@
         } else {
 
           message.textContent =
-            "Account created. Check your email to confirm your account.";
+            "Account created. Please confirm your email, then login.";
 
           signupBtn.disabled = false;
-
-          signupBtn.textContent =
-            "Create Account";
+          signupBtn.textContent = "Create Account";
         }
 
 
@@ -298,7 +327,6 @@
           error.message || "Signup failed.";
 
         signupBtn.disabled = false;
-
         signupBtn.textContent =
           "Create Account";
       }
