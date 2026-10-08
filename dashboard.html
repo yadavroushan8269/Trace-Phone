@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Trace-Phone Dashboard</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #05070b;
+      color: white;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+    }
+
+    h1 {
+      margin-bottom: 5px;
+    }
+
+    .sub {
+      color: #9ca3af;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: #0d1117;
+      border: 1px solid #252b35;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 7px 0 12px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #080b10;
+      color: white;
+    }
+
+    button {
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-right: 7px;
+    }
+
+    .primary {
+      background: #238636;
+      color: white;
+    }
+
+    .danger {
+      background: #da3633;
+      color: white;
+    }
+
+    .device {
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 12px;
+    }
+
+    .status {
+      color: #58a6ff;
+    }
+
+    .message {
+      margin-top: 12px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>Trace-Phone</h1>
+  <div class="sub">Device Recovery Dashboard</div>
+
+  <div class="card">
+    <h2>Register Device</h2>
+
+    <label>Device Name</label>
+    <input
+      type="text"
+      id="deviceName"
+      placeholder="My Android Phone"
+    >
+
+    <label>IMEI</label>
+    <input
+      type="text"
+      id="imei"
+      placeholder="Enter IMEI"
+    >
+
+    <button class="primary" onclick="registerDevice()">
+      Register Device
+    </button>
+
+    <div id="message" class="message"></div>
+  </div>
+
+  <div class="card">
+    <h2>My Devices</h2>
+
+    <div id="devices">
+      Loading...
+    </div>
+  </div>
+
+  <button class="danger" onclick="logout()">
+    Logout
+  </button>
+
+</div>
+
+<script>
+
+  // ==============================
+  // SUPABASE CONFIG
+  // ==============================
+
+  const SUPABASE_URL =
+    "https://iromlvyoogoahfirveow.supabase.co";
+
+  const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_vsmsR6NoKBBbxWq30zgNBA_0Zq_1zeM  ";
+
+
+  const supabaseClient =
+    window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+
+  // ==============================
+  // CHECK LOGIN
+  // ==============================
+
+  async function checkUser() {
+
+    const {
+      data: { user }
+    } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    loadDevices();
+  }
+
+
+  // ==============================
+  // REGISTER DEVICE
+  // ==============================
+
+  async function registerDevice() {
+
+    const deviceName =
+      document.getElementById("deviceName").value.trim();
+
+    const imei =
+      document.getElementById("imei").value.trim();
+
+    const message =
+      document.getElementById("message");
+
+
+    if (!deviceName || !imei) {
+      message.textContent =
+        "Device name aur IMEI dono enter karo.";
+      return;
+    }
+
+
+    const {
+      data: { user }
+    } = await supabaseClient.auth.getUser();
+
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+
+    const { error } =
+      await supabaseClient
+        .from("devices")
+        .insert({
+          user_id: user.id,
+          device_name: deviceName,
+          imei: imei
+        });
+
+
+    if (error) {
+
+      console.error(error);
+
+      message.textContent =
+        "Device register nahi hua: " +
+        error.message;
+
+      return;
+    }
+
+
+    message.textContent =
+      "Device successfully registered.";
+
+    document.getElementById("deviceName").value = "";
+    document.getElementById("imei").value = "";
+
+    loadDevices();
+  }
+
+
+  // ==============================
+  // LOAD DEVICES
+  // ==============================
+
+  async function loadDevices() {
+
+    const container =
+      document.getElementById("devices");
+
+
+    const {
+      data: { user }
+    } = await supabaseClient.auth.getUser();
+
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+
+    const { data, error } =
+      await supabaseClient
+        .from("devices")
+        .select("*")
+        .order("created_at", {
+          ascending: false
+        });
+
+
+    if (error) {
+
+      container.innerHTML =
+        "<p>Devices load nahi ho paaye.</p>";
+
+      console.error(error);
+
+      return;
+    }
+
+
+    if (!data || data.length === 0) {
+
+      container.innerHTML =
+        "<p>Abhi koi device registered nahi hai.</p>";
+
+      return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    data.forEach(device => {
+
+      const div =
+        document.createElement("div");
+
+      div.className = "device";
+
+
+      const lostStatus =
+        device.is_lost
+          ? "Lost Mode ON"
+          : "Normal";
+
+
+      const location =
+        device.last_latitude !== null &&
+        device.last_longitude !== null
+          ? `${device.last_latitude}, ${device.last_longitude}`
+          : "Location available nahi hai";
+
+
+      div.innerHTML = `
+        <h3>${escapeHTML(device.device_name)}</h3>
+
+        <p>
+          <strong>IMEI:</strong>
+          ${escapeHTML(device.imei || "Not added")}
+        </p>
+
+        <p>
+          <strong>Status:</strong>
+          <span class="status">${lostStatus}</span>
+        </p>
+
+        <p>
+          <strong>Last Location:</strong>
+          ${location}
+        </p>
+
+        <p>
+          <strong>Last Seen:</strong>
+          ${device.last_seen || "Never"}
+        </p>
+      `;
+
+
+      container.appendChild(div);
+
+    });
+  }
+
+
+  // ==============================
+  // LOGOUT
+  // ==============================
+
+  async function logout() {
+
+    await supabaseClient.auth.signOut();
+
+    window.location.href = "login.html";
+  }
+
+
+  // ==============================
+  // BASIC HTML ESCAPE
+  // ==============================
+
+  function escapeHTML(value) {
+
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+
+  checkUser();
+
+</script>
+
+</body>
+</html>
