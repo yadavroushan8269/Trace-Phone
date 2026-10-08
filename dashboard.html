@@ -15,7 +15,6 @@
 
     body {
       margin: 0;
-      min-height: 100vh;
       font-family: Arial, sans-serif;
       background: #05070b;
       color: white;
@@ -28,73 +27,72 @@
     }
 
     h1 {
-      margin-bottom: 5px;
-    }
-
-    .sub {
-      color: #9ca3af;
-      margin-bottom: 25px;
+      text-align: center;
     }
 
     .card {
-      background: #0d1117;
-      border: 1px solid #252b35;
+      background: #10141c;
+      border: 1px solid #293241;
       border-radius: 14px;
       padding: 20px;
-      margin-bottom: 18px;
+      margin-top: 20px;
     }
 
     input {
       width: 100%;
       padding: 12px;
-      margin: 7px 0 12px;
+      margin: 8px 0;
       border-radius: 8px;
-      border: 1px solid #30363d;
+      border: 1px solid #394454;
       background: #080b10;
       color: white;
     }
 
     button {
-      padding: 11px 16px;
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
       border: 0;
       border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
-      margin-right: 7px;
     }
 
     .primary {
-      background: #238636;
+      background: #1677ff;
       color: white;
     }
 
-    .danger {
-      background: #da3633;
+    .location {
+      background: #16a34a;
+      color: white;
+    }
+
+    .logout {
+      background: #dc2626;
       color: white;
     }
 
     .device {
-      border: 1px solid #30363d;
+      background: #080b10;
+      border: 1px solid #293241;
       border-radius: 10px;
       padding: 15px;
-      margin-top: 12px;
+      margin-top: 15px;
     }
 
     .status {
-      color: #58a6ff;
+      color: #22c55e;
+      font-weight: bold;
     }
 
-    .message {
-      margin-top: 12px;
+    .muted {
       color: #9ca3af;
     }
 
-    .error {
-      color: #ff7b72;
-    }
-
-    .success {
-      color: #3fb950;
+    #message {
+      margin-top: 15px;
+      text-align: center;
     }
   </style>
 </head>
@@ -103,77 +101,64 @@
 
 <div class="container">
 
-  <h1>Trace-Phone</h1>
-  <div class="sub">Device Recovery Dashboard</div>
+  <h1>📱 Trace-Phone</h1>
 
   <div class="card">
 
     <h2>Register Device</h2>
 
-    <label for="deviceName">Device Name</label>
-
     <input
       type="text"
       id="deviceName"
-      placeholder="My Android Phone"
+      placeholder="Device Name"
     >
-
-    <label for="imei">IMEI</label>
 
     <input
       type="text"
       id="imei"
-      placeholder="Enter IMEI"
+      placeholder="IMEI Number"
     >
 
-    <button
-      class="primary"
-      onclick="registerDevice()"
-    >
+    <button class="primary" onclick="registerDevice()">
       Register Device
     </button>
 
-    <div
-      id="message"
-      class="message"
-    ></div>
+    <button class="location" onclick="updateLocation()">
+      📍 Get Current Location
+    </button>
+
+    <button class="logout" onclick="logout()">
+      Logout
+    </button>
+
+    <div id="message"></div>
 
   </div>
-
 
   <div class="card">
 
     <h2>My Devices</h2>
 
     <div id="devices">
-      Loading...
+      Loading devices...
     </div>
 
   </div>
-
-
-  <button
-    class="danger"
-    onclick="logout()"
-  >
-    Logout
-  </button>
 
 </div>
 
 
 <script>
 
-  // ==========================================
-  // SUPABASE CONFIG
-  // ==========================================
+  /* ==============================
+     SUPABASE CONFIG
+     ============================== */
 
   const SUPABASE_URL =
     "https://iromlvyoogoahfirveow.supabase.co";
 
   const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_vsmsR6NoKBBbxWq30zgNBA_0Zq_1zeM";
-
 
   const supabaseClient =
     window.supabase.createClient(
@@ -182,154 +167,247 @@
     );
 
 
-  // ==========================================
-  // CHECK LOGIN
-  // ==========================================
+  let currentUser = null;
 
-  async function checkUser() {
+
+  /* ==============================
+     START
+     ============================== */
+
+  async function start() {
 
     const {
       data: { user },
       error
     } = await supabaseClient.auth.getUser();
 
-
-    if (error) {
-
-      console.error("Auth error:", error);
-
+    if (error || !user) {
       window.location.href = "login.html";
-
       return;
     }
 
-
-    if (!user) {
-
-      window.location.href = "login.html";
-
-      return;
-    }
-
-
-    console.log("Logged in user:", user.id);
+    currentUser = user;
 
     loadDevices();
   }
 
 
-  // ==========================================
-  // REGISTER DEVICE
-  // ==========================================
+  /* ==============================
+     REGISTER DEVICE
+     ============================== */
 
   async function registerDevice() {
+
+    const deviceName =
+      document.getElementById("deviceName").value.trim();
+
+    const imei =
+      document.getElementById("imei").value.trim();
 
     const message =
       document.getElementById("message");
 
 
-    const deviceName =
-      document
-        .getElementById("deviceName")
-        .value
-        .trim();
-
-
-    const imei =
-      document
-        .getElementById("imei")
-        .value
-        .trim();
-
-
-    message.className = "message";
-
-
     if (!deviceName || !imei) {
 
-      message.textContent =
-        "Device name aur IMEI dono enter karo.";
+      message.innerHTML =
+        "Please enter device name and IMEI.";
 
       return;
     }
 
 
     const {
-      data: { user },
-      error: authError
-    } =
-      await supabaseClient.auth.getUser();
+      error
+    } = await supabaseClient
+      .from("devices")
+      .insert({
 
+        user_id: currentUser.id,
 
-    if (authError || !user) {
+        device_name: deviceName,
 
-      message.className =
-        "message error";
+        imei: imei
 
-      message.textContent =
-        "Login session nahi mili. Dobara login karo.";
-
-      return;
-    }
-
-
-    const { error } =
-      await supabaseClient
-        .from("devices")
-        .insert({
-
-          user_id: user.id,
-
-          device_name: deviceName,
-
-          imei: imei
-
-        });
+      });
 
 
     if (error) {
 
-      console.error(
-        "Device insert error:",
-        error
-      );
+      console.error(error);
 
-
-      message.className =
-        "message error";
-
-      message.textContent =
-        "Device register nahi hua: " +
-        error.message;
+      message.innerHTML =
+        "Device registration failed.";
 
       return;
     }
 
 
-    message.className =
-      "message success";
+    message.innerHTML =
+      "✅ Device registered successfully.";
 
-    message.textContent =
-      "Device successfully registered.";
-
-
-    document
-      .getElementById("deviceName")
-      .value = "";
-
-
-    document
-      .getElementById("imei")
-      .value = "";
-
+    document.getElementById("deviceName").value = "";
+    document.getElementById("imei").value = "";
 
     loadDevices();
   }
 
 
-  // ==========================================
-  // LOAD DEVICES
-  // ==========================================
+  /* ==============================
+     GET CURRENT LOCATION
+     ============================== */
+
+  async function updateLocation() {
+
+    const message =
+      document.getElementById("message");
+
+
+    if (!navigator.geolocation) {
+
+      message.innerHTML =
+        "❌ This browser does not support location.";
+
+      return;
+    }
+
+
+    message.innerHTML =
+      "📍 Requesting location permission...";
+
+
+    navigator.geolocation.getCurrentPosition(
+
+      async function(position) {
+
+        const latitude =
+          position.coords.latitude;
+
+        const longitude =
+          position.coords.longitude;
+
+
+        /*
+          Get user's devices
+        */
+
+        const {
+          data: devices,
+          error: fetchError
+        } = await supabaseClient
+          .from("devices")
+          .select("id")
+          .eq("user_id", currentUser.id)
+          .order("created_at", {
+            ascending: false
+          });
+
+
+        if (fetchError) {
+
+          console.error(fetchError);
+
+          message.innerHTML =
+            "❌ Could not find your device.";
+
+          return;
+        }
+
+
+        if (!devices || devices.length === 0) {
+
+          message.innerHTML =
+            "❌ First register a device.";
+
+          return;
+        }
+
+
+        /*
+          Update latest registered device
+        */
+
+        const deviceId =
+          devices[0].id;
+
+
+        const {
+          error: updateError
+        } = await supabaseClient
+          .from("devices")
+          .update({
+
+            last_latitude: latitude,
+
+            last_longitude: longitude,
+
+            last_seen: new Date().toISOString()
+
+          })
+          .eq("id", deviceId)
+          .eq("user_id", currentUser.id);
+
+
+        if (updateError) {
+
+          console.error(updateError);
+
+          message.innerHTML =
+            "❌ Location could not be saved.";
+
+          return;
+        }
+
+
+        message.innerHTML =
+          "✅ Location saved successfully.";
+
+        loadDevices();
+
+      },
+
+
+      function(error) {
+
+        console.error(error);
+
+        if (error.code === 1) {
+
+          message.innerHTML =
+            "❌ Location permission denied.";
+
+        } else if (error.code === 2) {
+
+          message.innerHTML =
+            "❌ Location unavailable.";
+
+        } else if (error.code === 3) {
+
+          message.innerHTML =
+            "❌ Location request timed out.";
+
+        } else {
+
+          message.innerHTML =
+            "❌ Unable to get location.";
+
+        }
+
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+
+    );
+  }
+
+
+  /* ==============================
+     LOAD DEVICES
+     ============================== */
 
   async function loadDevices() {
 
@@ -338,49 +416,23 @@
 
 
     const {
-      data: { user },
-      error: authError
-    } =
-      await supabaseClient.auth.getUser();
-
-
-    if (authError || !user) {
-
-      window.location.href =
-        "login.html";
-
-      return;
-    }
-
-
-    const {
       data,
       error
-    } =
-      await supabaseClient
-        .from("devices")
-        .select("*")
-        .order(
-          "created_at",
-          {
-            ascending: false
-          }
-        );
+    } = await supabaseClient
+      .from("devices")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", {
+        ascending: false
+      });
 
 
     if (error) {
 
-      console.error(
-        "Device load error:",
-        error
-      );
-
+      console.error(error);
 
       container.innerHTML =
-        `<p class="error">
-          Devices load nahi ho paaye:<br>
-          ${escapeHTML(error.message)}
-        </p>`;
+        "Unable to load devices.";
 
       return;
     }
@@ -389,7 +441,7 @@
     if (!data || data.length === 0) {
 
       container.innerHTML =
-        "<p>Abhi koi device registered nahi hai.</p>";
+        '<p class="muted">No devices registered.</p>';
 
       return;
     }
@@ -400,71 +452,60 @@
 
     data.forEach(device => {
 
-      const div =
-        document.createElement("div");
-
-
-      div.className =
-        "device";
-
-
-      const lostStatus =
-        device.is_lost
-          ? "Lost Mode ON"
-          : "Normal";
-
-
-      const location =
+      const locationAvailable =
         device.last_latitude !== null &&
-        device.last_longitude !== null
+        device.last_longitude !== null;
 
-          ? `${device.last_latitude}, ${device.last_longitude}`
 
-          : "Location available nahi hai";
+      const locationText =
+        locationAvailable
+
+        ? `${device.last_latitude.toFixed(6)},
+           ${device.last_longitude.toFixed(6)}`
+
+        : "Location available nahi hai";
 
 
       const lastSeen =
         device.last_seen
-          ? new Date(
-              device.last_seen
-            ).toLocaleString()
-          : "Never";
+        ? new Date(device.last_seen).toLocaleString()
+        : "Never";
+
+
+      const status =
+        device.is_lost
+        ? "Lost"
+        : "Normal";
+
+
+      const div =
+        document.createElement("div");
+
+      div.className = "device";
 
 
       div.innerHTML = `
 
-        <h3>
-          ${escapeHTML(
-            device.device_name
-          )}
-        </h3>
+        <h3>${escapeHTML(device.device_name)}</h3>
 
         <p>
-          <strong>IMEI:</strong>
-          ${escapeHTML(
-            device.imei || "Not added"
-          )}
+          <b>IMEI:</b>
+          ${escapeHTML(device.imei || "Not available")}
         </p>
 
         <p>
-          <strong>Status:</strong>
-          <span class="status">
-            ${lostStatus}
-          </span>
+          <b>Status:</b>
+          <span class="status">${status}</span>
         </p>
 
         <p>
-          <strong>Last Location:</strong>
-          ${escapeHTML(
-            location
-          )}
+          <b>Last Location:</b>
+          ${locationText}
         </p>
 
         <p>
-          <strong>Last Seen:</strong>
-          ${escapeHTML(
-            lastSeen
-          )}
+          <b>Last Seen:</b>
+          ${lastSeen}
         </p>
 
       `;
@@ -473,62 +514,44 @@
       container.appendChild(div);
 
     });
+
   }
 
 
-  // ==========================================
-  // LOGOUT
-  // ==========================================
+  /* ==============================
+     LOGOUT
+     ============================== */
 
   async function logout() {
 
     await supabaseClient.auth.signOut();
 
-    window.location.href =
-      "login.html";
+    window.location.href = "login.html";
   }
 
 
-  // ==========================================
-  // HTML ESCAPE
-  // ==========================================
+  /* ==============================
+     HTML SECURITY
+     ============================== */
 
   function escapeHTML(value) {
 
     return String(value)
 
-      .replaceAll(
-        "&",
-        "&amp;"
-      )
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
 
-      .replaceAll(
-        "<",
-        "&lt;"
-      )
-
-      .replaceAll(
-        ">",
-        "&gt;"
-      )
-
-      .replaceAll(
-        '"',
-        "&quot;"
-      )
-
-      .replaceAll(
-        "'",
-        "&#039;"
-      );
   }
 
 
-  // ==========================================
-  // START
-  // ==========================================
+  /* ==============================
+     RUN
+     ============================== */
 
-  checkUser();
+  start();
 
 </script>
 
