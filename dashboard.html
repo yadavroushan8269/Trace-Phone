@@ -88,6 +88,14 @@
       margin-top: 12px;
       color: #9ca3af;
     }
+
+    .error {
+      color: #ff7b72;
+    }
+
+    .success {
+      color: #3fb950;
+    }
   </style>
 </head>
 
@@ -99,54 +107,72 @@
   <div class="sub">Device Recovery Dashboard</div>
 
   <div class="card">
+
     <h2>Register Device</h2>
 
-    <label>Device Name</label>
+    <label for="deviceName">Device Name</label>
+
     <input
       type="text"
       id="deviceName"
       placeholder="My Android Phone"
     >
 
-    <label>IMEI</label>
+    <label for="imei">IMEI</label>
+
     <input
       type="text"
       id="imei"
       placeholder="Enter IMEI"
     >
 
-    <button class="primary" onclick="registerDevice()">
+    <button
+      class="primary"
+      onclick="registerDevice()"
+    >
       Register Device
     </button>
 
-    <div id="message" class="message"></div>
+    <div
+      id="message"
+      class="message"
+    ></div>
+
   </div>
 
+
   <div class="card">
+
     <h2>My Devices</h2>
 
     <div id="devices">
       Loading...
     </div>
+
   </div>
 
-  <button class="danger" onclick="logout()">
+
+  <button
+    class="danger"
+    onclick="logout()"
+  >
     Logout
   </button>
 
 </div>
 
+
 <script>
 
-  // ==============================
+  // ==========================================
   // SUPABASE CONFIG
-  // ==============================
+  // ==========================================
 
   const SUPABASE_URL =
     "https://iromlvyoogoahfirveow.supabase.co";
 
   const SUPABASE_PUBLISHABLE_KEY =
-    "sb_publishable_vsmsR6NoKBBbxWq30zgNBA_0Zq_1zeM  ";
+    "sb_publishable_vsmsR6NoKBBbxWq30zgNBA_0Zq_1zeM";
 
 
   const supabaseClient =
@@ -156,55 +182,93 @@
     );
 
 
-  // ==============================
+  // ==========================================
   // CHECK LOGIN
-  // ==============================
+  // ==========================================
 
   async function checkUser() {
 
     const {
-      data: { user }
+      data: { user },
+      error
     } = await supabaseClient.auth.getUser();
 
-    if (!user) {
+
+    if (error) {
+
+      console.error("Auth error:", error);
+
       window.location.href = "login.html";
+
       return;
     }
+
+
+    if (!user) {
+
+      window.location.href = "login.html";
+
+      return;
+    }
+
+
+    console.log("Logged in user:", user.id);
 
     loadDevices();
   }
 
 
-  // ==============================
+  // ==========================================
   // REGISTER DEVICE
-  // ==============================
+  // ==========================================
 
   async function registerDevice() {
-
-    const deviceName =
-      document.getElementById("deviceName").value.trim();
-
-    const imei =
-      document.getElementById("imei").value.trim();
 
     const message =
       document.getElementById("message");
 
 
+    const deviceName =
+      document
+        .getElementById("deviceName")
+        .value
+        .trim();
+
+
+    const imei =
+      document
+        .getElementById("imei")
+        .value
+        .trim();
+
+
+    message.className = "message";
+
+
     if (!deviceName || !imei) {
+
       message.textContent =
         "Device name aur IMEI dono enter karo.";
+
       return;
     }
 
 
     const {
-      data: { user }
-    } = await supabaseClient.auth.getUser();
+      data: { user },
+      error: authError
+    } =
+      await supabaseClient.auth.getUser();
 
 
-    if (!user) {
-      window.location.href = "login.html";
+    if (authError || !user) {
+
+      message.className =
+        "message error";
+
+      message.textContent =
+        "Login session nahi mili. Dobara login karo.";
+
       return;
     }
 
@@ -213,15 +277,26 @@
       await supabaseClient
         .from("devices")
         .insert({
+
           user_id: user.id,
+
           device_name: deviceName,
+
           imei: imei
+
         });
 
 
     if (error) {
 
-      console.error(error);
+      console.error(
+        "Device insert error:",
+        error
+      );
+
+
+      message.className =
+        "message error";
 
       message.textContent =
         "Device register nahi hua: " +
@@ -231,19 +306,30 @@
     }
 
 
+    message.className =
+      "message success";
+
     message.textContent =
       "Device successfully registered.";
 
-    document.getElementById("deviceName").value = "";
-    document.getElementById("imei").value = "";
+
+    document
+      .getElementById("deviceName")
+      .value = "";
+
+
+    document
+      .getElementById("imei")
+      .value = "";
+
 
     loadDevices();
   }
 
 
-  // ==============================
+  // ==========================================
   // LOAD DEVICES
-  // ==============================
+  // ==========================================
 
   async function loadDevices() {
 
@@ -252,31 +338,49 @@
 
 
     const {
-      data: { user }
-    } = await supabaseClient.auth.getUser();
+      data: { user },
+      error: authError
+    } =
+      await supabaseClient.auth.getUser();
 
 
-    if (!user) {
-      window.location.href = "login.html";
+    if (authError || !user) {
+
+      window.location.href =
+        "login.html";
+
       return;
     }
 
 
-    const { data, error } =
+    const {
+      data,
+      error
+    } =
       await supabaseClient
         .from("devices")
         .select("*")
-        .order("created_at", {
-          ascending: false
-        });
+        .order(
+          "created_at",
+          {
+            ascending: false
+          }
+        );
 
 
     if (error) {
 
-      container.innerHTML =
-        "<p>Devices load nahi ho paaye.</p>";
+      console.error(
+        "Device load error:",
+        error
+      );
 
-      console.error(error);
+
+      container.innerHTML =
+        `<p class="error">
+          Devices load nahi ho paaye:<br>
+          ${escapeHTML(error.message)}
+        </p>`;
 
       return;
     }
@@ -299,7 +403,9 @@
       const div =
         document.createElement("div");
 
-      div.className = "device";
+
+      div.className =
+        "device";
 
 
       const lostStatus =
@@ -311,32 +417,56 @@
       const location =
         device.last_latitude !== null &&
         device.last_longitude !== null
+
           ? `${device.last_latitude}, ${device.last_longitude}`
+
           : "Location available nahi hai";
 
 
+      const lastSeen =
+        device.last_seen
+          ? new Date(
+              device.last_seen
+            ).toLocaleString()
+          : "Never";
+
+
       div.innerHTML = `
-        <h3>${escapeHTML(device.device_name)}</h3>
+
+        <h3>
+          ${escapeHTML(
+            device.device_name
+          )}
+        </h3>
 
         <p>
           <strong>IMEI:</strong>
-          ${escapeHTML(device.imei || "Not added")}
+          ${escapeHTML(
+            device.imei || "Not added"
+          )}
         </p>
 
         <p>
           <strong>Status:</strong>
-          <span class="status">${lostStatus}</span>
+          <span class="status">
+            ${lostStatus}
+          </span>
         </p>
 
         <p>
           <strong>Last Location:</strong>
-          ${location}
+          ${escapeHTML(
+            location
+          )}
         </p>
 
         <p>
           <strong>Last Seen:</strong>
-          ${device.last_seen || "Never"}
+          ${escapeHTML(
+            lastSeen
+          )}
         </p>
+
       `;
 
 
@@ -346,32 +476,57 @@
   }
 
 
-  // ==============================
+  // ==========================================
   // LOGOUT
-  // ==============================
+  // ==========================================
 
   async function logout() {
 
     await supabaseClient.auth.signOut();
 
-    window.location.href = "login.html";
+    window.location.href =
+      "login.html";
   }
 
 
-  // ==============================
-  // BASIC HTML ESCAPE
-  // ==============================
+  // ==========================================
+  // HTML ESCAPE
+  // ==========================================
 
   function escapeHTML(value) {
 
     return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+
+      .replaceAll(
+        "&",
+        "&amp;"
+      )
+
+      .replaceAll(
+        "<",
+        "&lt;"
+      )
+
+      .replaceAll(
+        ">",
+        "&gt;"
+      )
+
+      .replaceAll(
+        '"',
+        "&quot;"
+      )
+
+      .replaceAll(
+        "'",
+        "&#039;"
+      );
   }
 
+
+  // ==========================================
+  // START
+  // ==========================================
 
   checkUser();
 
